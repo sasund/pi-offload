@@ -1,0 +1,16 @@
+{
+  "name": "pi-offload",
+  "displayName": "pi offload",
+  "version": "0.1.0",
+  "description": "Offloads I/O-heavy work to a local pi.dev agent to save tokens. Hooks block large file reads and redirect to bulk-reader/code-writer scripts backed by the pi CLI.",
+  "license": "Apache-2.0",
+  "keywords": [
+    "token-optimization",
+    "model-routing",
+    "delegation",
+    "pi",
+    "local-llm"
+  ],
+  "skills": "./skills/",
+  "hooks": "./hooks/hooks.json"
+}
