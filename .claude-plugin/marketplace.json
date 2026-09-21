@@ -1,0 +1,14 @@
+{
+  "name": "pi-offload",
+  "owner": {
+    "name": "sasund"
+  },
+  "plugins": [
+    {
+      "name": "pi-offload",
+      "source": "./",
+      "description": "Offloads I/O-heavy work to a local pi.dev agent to save tokens."
+    }
+  ],
+  "description": "Local-model delegation plugins for Claude Code."
+}
