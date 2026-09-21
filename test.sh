@@ -15,15 +15,20 @@ check() { # name expected actual
   if [ "$2" = "$3" ]; then echo "ok   $1"; else echo "FAIL $1: want '$2' got '$3'"; fails=$((fails+1)); fi
 }
 
-hook() { # hook-name json -> decision
+# A PreToolUse hook allows by staying silent and denies with a
+# hookSpecificOutput envelope; anything else is a hook error.
+hook() { # hook-name json -> allow|deny|<error>
   local out
-  out=$(printf '%s' "$2" | "hooks/$1") || { echo "hook-error"; return; }
-  printf '%s' "$out" | jq -r '.decision // "no-decision"'
+  out=$(printf '%s' "$2" | "hooks/$1") || { echo "nonzero-exit"; return; }
+  [ -z "$out" ] && { echo allow; return; }
+  printf '%s' "$out" | jq -e '.hookSpecificOutput.hookEventName == "PreToolUse"' >/dev/null 2>&1 \
+    || { echo "bad-envelope"; return; }
+  printf '%s' "$out" | jq -r '.hookSpecificOutput.permissionDecision'
 }
 
 # --- Read hook ---
 j=$(printf '{"tool_input":{"file_path":"%s"}}' "$tmp/big.txt")
-check "read: big file blocked" block "$(hook check-file-size "$j")"
+check "read: big file blocked" deny "$(hook check-file-size "$j")"
 
 j=$(printf '{"tool_input":{"file_path":"%s"}}' "$tmp/small.txt")
 check "read: small file allowed" allow "$(hook check-file-size "$j")"
@@ -36,14 +41,14 @@ check "read: missing file allowed" allow "$(hook check-file-size "$j")"
 
 j=$(printf '{"tool_input":{"file_path":"%s"}}' "$tmp/big.txt")
 check "read: threshold raised allows" allow "$(PI_OFFLOAD_MIN_LINES=999 hook check-file-size "$j")"
-check "read: threshold lowered blocks" block "$(PI_OFFLOAD_MIN_LINES=5 hook check-file-size "$j")"
+check "read: threshold lowered blocks" deny "$(PI_OFFLOAD_MIN_LINES=5 hook check-file-size "$j")"
 
 # --- Bash hook ---
 j=$(printf '{"tool_input":{"command":"cat %s"}}' "$tmp/big.txt")
-check "bash: cat big blocked" block "$(hook check-bash-read "$j")"
+check "bash: cat big blocked" deny "$(hook check-bash-read "$j")"
 
 j=$(printf '{"tool_input":{"command":"cat -n %s"}}' "$tmp/big.txt")
-check "bash: cat -n big blocked" block "$(hook check-bash-read "$j")"
+check "bash: cat -n big blocked" deny "$(hook check-bash-read "$j")"
 
 j=$(printf '{"tool_input":{"command":"cat %s | grep 4"}}' "$tmp/big.txt")
 check "bash: piped allowed" allow "$(hook check-bash-read "$j")"

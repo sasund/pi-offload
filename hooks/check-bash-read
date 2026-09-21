@@ -5,16 +5,23 @@
 MIN_LINES="${PI_OFFLOAD_MIN_LINES:-350}"
 case "$MIN_LINES" in ''|*[!0-9]*) MIN_LINES=350 ;; esac
 
+# PreToolUse deny. A top-level {"decision": ...} is the legacy field and is
+# rejected by the hook validator; allowing is simply exit 0 with no output.
+deny() {
+  jq -n --arg r "$1" '{hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: $r}}'
+  exit 0
+}
+
 input=$(cat)
 
 command=$(echo "$input" | jq -r '.tool_input.command // empty')
-[ -z "$command" ] && { echo '{"decision": "allow"}'; exit 0; }
+[ -z "$command" ] && exit 0
 
 # Piped commands (cat file | grep) are targeted reads
-echo "$command" | grep -qE '\|' && { echo '{"decision": "allow"}'; exit 0; }
+echo "$command" | grep -qE '\|' && exit 0
 
 # Redirections (cat file > out) don't read into context
-echo "$command" | grep -qE '>' && { echo '{"decision": "allow"}'; exit 0; }
+echo "$command" | grep -qE '>' && exit 0
 
 # Extract the file path, stripping flags (cat -n, head -100, ...)
 file_path=""
@@ -28,12 +35,10 @@ if echo "$command" | grep -qE '^(cat|head|tail|less|more) '; then
   done
 fi
 
-[ -z "$file_path" ] && { echo '{"decision": "allow"}'; exit 0; }
-[ ! -f "$file_path" ] && { echo '{"decision": "allow"}'; exit 0; }
+[ -z "$file_path" ] && exit 0
+[ ! -f "$file_path" ] && exit 0
 
 lines=$(wc -l < "$file_path" 2>/dev/null | tr -d ' ' || echo "0")
 if [ "$lines" -gt "$MIN_LINES" ]; then
-  echo "{\"decision\": \"block\", \"reason\": \"File is ${lines} lines (threshold: ${MIN_LINES}). Use the bulk-reader skill to delegate this read to the local pi agent instead of cat/head/tail.\"}"
-else
-  echo '{"decision": "allow"}'
+  deny "File is ${lines} lines (threshold: ${MIN_LINES}). Use the bulk-reader skill to delegate this read to the local pi agent instead of cat/head/tail."
 fi
