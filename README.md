@@ -36,9 +36,21 @@ omlx          Qwen3.8-27B-4bit     262.1K   131.1K   no        yes
 
 ## Install
 
+The repo is its own marketplace, so it installs in two commands — from a clone:
+
 ```bash
-claude plugin install /path/to/pi-offload
+claude plugin marketplace add ./
+claude plugin install pi-offload@pi-offload
 ```
+
+or straight from GitHub:
+
+```bash
+claude plugin marketplace add sasund/pi-offload
+claude plugin install pi-offload@pi-offload
+```
+
+Restart Claude Code, then check it loaded: `claude plugin list`.
 
 ## Configuration
 
